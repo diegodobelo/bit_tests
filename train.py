@@ -13,7 +13,7 @@ from util.indicators import add_indicators
 
 curr_idx = -1
 reward_strategy = 'sortino'
-input_data_file = 'data/coinbase_hourly.csv'
+input_data_file = 'data/wdo_1.csv'
 params_db_file = 'sqlite:///params.db'
 
 study_name = 'ppo2_' + reward_strategy
@@ -24,7 +24,7 @@ print("Training PPO2 agent with params:", params)
 print("Best trial reward:", -1 * study.best_trial.value)
 
 df = pd.read_csv(input_data_file)
-df = df.drop(['Symbol'], axis=1)
+# df = df.drop(['Symbol'], axis=1)
 df = df.sort_values(['Date'])
 df = add_indicators(df.reset_index())
 

@@ -22,12 +22,13 @@ from util.indicators import add_indicators
 
 
 reward_strategy = 'sortino'
-input_data_file = 'data/coinbase_hourly.csv'
+input_data_file = 'data/wdo_optm.csv'
 params_db_file = 'sqlite:///params.db'
 
 # number of parallel jobs
 n_jobs = 4
 # maximum number of trials for finding the best hyperparams
+# n_trials = 1000
 n_trials = 1000
 # number of test episodes per trial
 n_test_episodes = 3
@@ -36,7 +37,7 @@ n_evaluations = 4
 
 
 df = pd.read_csv(input_data_file)
-df = df.drop(['Symbol'], axis=1)
+# df = df.drop(['Symbol'], axis=1)
 df = df.sort_values(['Date'])
 df = add_indicators(df.reset_index())
 
@@ -71,6 +72,8 @@ def optimize_ppo2(trial):
 
 def optimize_agent(trial):
     env_params = optimize_envs(trial)
+    print("Trial with params")
+    print(env_params)
     train_env = DummyVecEnv(
         [lambda: BitcoinTradingEnv(train_df,  **env_params)])
     test_env = DummyVecEnv(
@@ -84,6 +87,7 @@ def optimize_agent(trial):
     evaluation_interval = int(len(train_df) / n_evaluations)
 
     for eval_idx in range(n_evaluations):
+        print("Eval index: " + str(eval_idx))
         try:
             model.learn(evaluation_interval)
         except AssertionError:

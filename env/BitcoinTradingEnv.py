@@ -31,7 +31,7 @@ class BitcoinTradingEnv(gym.Env):
 
         self.df = df.fillna(method='bfill').reset_index()
         self.stationary_df = log_and_difference(
-            self.df, ['Open', 'High', 'Low', 'Close', 'Volume BTC', 'Volume USD'])
+            self.df, ['Open', 'High', 'Low', 'Close', 'Volume', 'Tick Volume'])
 
         benchmarks = kwargs.get('benchmarks', [])
         self.benchmarks = [
