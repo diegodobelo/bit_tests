@@ -100,6 +100,7 @@ class BitcoinTradingEnv(gym.Env):
 
     def _take_action(self, action):
         current_price = self._current_price()
+        # print("Current price " + str(current_price))
         action_type = int(action / 4)
         amount = 1 / (action % 4 + 1)
 
