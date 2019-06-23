@@ -53,7 +53,7 @@ test_df = df[validation_len:]
 def optimize_envs(trial):
     return {
         'reward_func': reward_strategy,
-        'forecast_len': int(trial.suggest_loguniform('forecast_len', 1, 200)),
+        'forecast_len': int(trial.suggest_loguniform('forecast_len', 10, 60)),
         'confidence_interval': trial.suggest_uniform('confidence_interval', 0.7, 0.99),
     }
 
@@ -80,8 +80,10 @@ def optimize_agent(trial):
         [lambda: BitcoinTradingEnv(test_df, **env_params)])
 
     model_params = optimize_ppo2(trial)
-    model = PPO2(MlpLnLstmPolicy, train_env, verbose=0, nminibatches=1,
-                 tensorboard_log="./tensorboard", **model_params)
+    # model = PPO2(MlpLnLstmPolicy, train_env, verbose=0, nminibatches=1,
+    #              tensorboard_log="./tensorboard", **model_params)
+
+    model = PPO2(MlpLnLstmPolicy, train_env, verbose=1, nminibatches=1, **model_params)
 
     last_reward = -np.finfo(np.float16).max
     evaluation_interval = int(len(train_df) / n_evaluations)
@@ -118,7 +120,7 @@ def optimize_agent(trial):
 
 
 def optimize():
-    study_name = 'ppo2_' + reward_strategy
+    study_name = 'ppo2_' + reward_strategy + "_minute"
     study = optuna.create_study(
         study_name=study_name, storage=params_db_file, load_if_exists=True)
 

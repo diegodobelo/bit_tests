@@ -22,8 +22,19 @@ class BitcoinTradingEnv(gym.Env):
     metadata = {'render.modes': ['human', 'system', 'none']}
     viewer = None
 
-    def __init__(self, df, initial_balance=10000, commission=0.0025, reward_func='sortino', **kwargs):
+    HOLD = 0
+    BUY = 1
+    SELL = 2
+
+    NOT_HOLDING = 3
+    HOLDING_LONG = 4
+    HOLDING_SHORT = 5
+
+    def __init__(self, df, initial_balance=1000, commission=0.0025, reward_func='sortino', **kwargs):
         super(BitcoinTradingEnv, self).__init__()
+
+        self.is_holding = BitcoinTradingEnv.NOT_HOLDING
+        self.holding_price = 0
 
         self.initial_balance = initial_balance
         self.commission = commission
@@ -52,11 +63,13 @@ class BitcoinTradingEnv(gym.Env):
 
         self.forecast_len = kwargs.get('forecast_len', 10)
         self.confidence_interval = kwargs.get('confidence_interval', 0.95)
-        self.obs_shape = (1, 5 + len(self.df.columns) -
+        self.obs_shape = (1, 1 + len(self.df.columns) -
                           2 + (self.forecast_len * 3))
 
+        # self.obs_shape = (1, 93)
+
         # Actions of the format Buy 1/4, Sell 3/4, Hold (amount ignored), etc.
-        self.action_space = spaces.Discrete(12)
+        self.action_space = spaces.Discrete(3)
 
         # Observes the price action, indicators, account action, price forecasts
         self.observation_space = spaces.Box(
@@ -96,50 +109,68 @@ class BitcoinTradingEnv(gym.Env):
         return obs
 
     def _current_price(self):
-        return self.df['Close'].values[self.current_step + self.forecast_len] + 0.01
+        return self.df['Close'].values[self.current_step + self.forecast_len]
 
     def _take_action(self, action):
         current_price = self._current_price()
         # print("Current price " + str(current_price))
-        action_type = int(action / 4)
-        amount = 1 / (action % 4 + 1)
+        # action_type = int(action / 4)
+        # amount = 1 / (action % 4 + 1)
 
-        btc_bought = 0
-        btc_sold = 0
-        cost = 0
-        sales = 0
+        profit = 0
+        if (self.is_holding == BitcoinTradingEnv.NOT_HOLDING):
+            self.holding_price = current_price
+            if (action == BitcoinTradingEnv.BUY):
+                self.is_holding = BitcoinTradingEnv.HOLDING_LONG
+            elif (action == BitcoinTradingEnv.SELL):
+                self.is_holding = BitcoinTradingEnv.HOLDING_SHORT
+        elif (self.is_holding == BitcoinTradingEnv.HOLDING_LONG):
+            if (action == BitcoinTradingEnv.SELL):
+                self.is_holding = BitcoinTradingEnv.NOT_HOLDING
+                profit = current_price - self.holding_price
+        elif (self.is_holding == BitcoinTradingEnv.HOLDING_SHORT):
+            if (action == BitcoinTradingEnv.BUY):
+                self.is_holding = BitcoinTradingEnv.NOT_HOLDING
+                profit = self.holding_price - current_price
+        # print("Profit")
+        # print(profit)
 
-        if action_type == 0:
-            price = current_price * (1 + self.commission)
-            btc_bought = min(self.balance * amount /
-                             price, self.balance / price)
-            cost = btc_bought * price
+        # btc_bought = 0
+        # btc_sold = 0
+        # cost = 0
+        # sales = 0
 
-            self.btc_held += btc_bought
-            self.balance -= cost
-        elif action_type == 1:
-            price = current_price * (1 - self.commission)
-            btc_sold = self.btc_held * amount
-            sales = btc_sold * price
+        self.balance += profit
+        print(self.balance)
 
-            self.btc_held -= btc_sold
-            self.balance += sales
+        # if action_type == 0:
+        #     price = current_price * (1 + self.commission)
+        #     btc_bought = min(self.balance * amount /
+        #                      price, self.balance / price)
+        #     cost = btc_bought * price
 
-        if btc_sold > 0 or btc_bought > 0:
-            self.trades.append({'step': self.current_step,
-                                'amount': btc_sold if btc_sold > 0 else btc_bought, 'total': sales if btc_sold > 0 else cost,
-                                'type': 'sell' if btc_sold > 0 else 'buy'})
+        #     self.btc_held += btc_bought
+        #     self.balance -= cost
+        # elif action_type == 1:
+        #     price = current_price * (1 - self.commission)
+        #     btc_sold = self.btc_held * amount
+        #     sales = btc_sold * price
 
-        self.net_worths.append(
-            self.balance + self.btc_held * current_price)
+        #     self.btc_held -= btc_sold
+        #     self.balance += sales
 
-        self.account_history = np.append(self.account_history, [
-            [self.balance],
-            [btc_bought],
-            [cost],
-            [btc_sold],
-            [sales]
-        ], axis=1)
+        # if btc_sold > 0 or btc_bought > 0:
+        #     self.trades.append({'step': self.current_step,
+        #                         'amount': btc_sold if btc_sold > 0 else btc_bought, 'total': sales if btc_sold > 0 else cost,
+        #                         'type': 'sell' if btc_sold > 0 else 'buy'})
+
+        self.net_worths.append(self.balance)
+        # print("net_worths")
+        # print(self.net_worths)
+
+        # self.account_history = np.append(self.account_history, [
+        #     [self.balance]
+        # ], axis=1)
 
     def _reward(self):
         length = min(self.current_step, self.forecast_len)
@@ -150,33 +181,31 @@ class BitcoinTradingEnv(gym.Env):
 
         if self.reward_func == 'sortino':
             reward = sortino_ratio(
-                returns, annualization=365*24)
+                returns, annualization=365*24*60)
         elif self.reward_func == 'calmar':
             reward = calmar_ratio(
-                returns, annualization=365*24)
+                returns, annualization=365*24*60)
         elif self.reward_func == 'omega':
             reward = omega_ratio(
-                returns, annualization=365*24)
+                returns, annualization=365*24*60)
         else:
             reward = returns[-1]
 
-        return reward if np.isfinite(reward) else 0
+        return reward/100 if np.isfinite(reward) else 0
 
     def _done(self):
         return self.net_worths[-1] < self.initial_balance / 10 or self.current_step == len(self.df) - self.forecast_len - 1
 
     def reset(self):
+        self.is_holding = BitcoinTradingEnv.NOT_HOLDING
+        self.holding_price = 0
         self.balance = self.initial_balance
         self.net_worths = [self.initial_balance]
         self.btc_held = 0
         self.current_step = 0
 
         self.account_history = np.array([
-            [self.balance],
-            [0],
-            [0],
-            [0],
-            [0]
+            [self.balance]
         ])
         self.trades = []
 
@@ -197,9 +226,9 @@ class BitcoinTradingEnv(gym.Env):
         if mode == 'system':
             print('Price: ' + str(self._current_price()))
             print(
-                'Bought: ' + str(self.account_history[2][self.current_step]))
+                'Bought: ' + str(self.account_history[0][self.current_step]))
             print(
-                'Sold: ' + str(self.account_history[4][self.current_step]))
+                'Sold: ' + str(self.account_history[0][self.current_step]))
             print('Net worth: ' + str(self.net_worths[-1]))
 
         elif mode == 'human':

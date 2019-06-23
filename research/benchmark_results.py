@@ -3,7 +3,7 @@ import pandas as pd
 
 from util.benchmarks import buy_and_hodl, rsi_divergence, sma_crossover
 
-df = pd.read_csv('./data/wdo_1.csv')
+df = pd.read_csv('./data/wdo_small.csv')
 # df = df.drop(['Symbol'], axis=1)
 df = df.sort_values(['Date'])
 

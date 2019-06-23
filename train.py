@@ -16,7 +16,7 @@ reward_strategy = 'sortino'
 input_data_file = 'data/wdo_1.csv'
 params_db_file = 'sqlite:///params.db'
 
-study_name = 'ppo2_' + reward_strategy
+study_name = 'ppo2_' + reward_strategy + "_minute"
 study = optuna.load_study(study_name=study_name, storage=params_db_file)
 params = study.best_trial.params
 

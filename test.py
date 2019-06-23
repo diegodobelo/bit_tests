@@ -11,17 +11,17 @@ from util.indicators import add_indicators
 
 curr_idx = 0
 reward_strategy = 'sortino'
-input_data_file = 'data/wdo_1.csv'
+input_data_file = 'data/wdo_small.csv'
 params_db_file = 'sqlite:///params.db'
 
-study_name = 'ppo2_' + reward_strategy
+study_name = 'ppo2_' + reward_strategy + '_minute'
 study = optuna.load_study(study_name=study_name, storage=params_db_file)
 params = study.best_trial.params
 
 print("Testing PPO2 agent with params:", params)
 print("Best trial:", -1 * study.best_trial.value)
 
-df = pd.read_csv('./data/wdo_1.csv')
+df = pd.read_csv(input_data_file)
 # df = df.drop(['Symbol'], axis=1)
 df = df.sort_values(['Date'])
 df = add_indicators(df.reset_index())
@@ -30,6 +30,8 @@ test_len = int(len(df) * 0.2)
 train_len = int(len(df)) - test_len
 
 test_df = df[train_len:]
+
+print(test_df.describe())
 
 test_env = DummyVecEnv([lambda: BitcoinTradingEnv(
     test_df, reward_func=reward_strategy, forecast_len=int(params['forecast_len']), confidence_interval=params['confidence_interval'])])
@@ -51,4 +53,4 @@ while not done:
     action, _states = model.predict(obs)
     obs, reward, done, info = test_env.step(action)
 
-    test_env.render(mode="human")
+    test_env.render(mode="system")

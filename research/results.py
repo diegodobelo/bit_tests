@@ -11,7 +11,7 @@ from env.BitcoinTradingEnv import BitcoinTradingEnv
 from util.indicators import add_indicators
 
 
-df = pd.read_csv('./data/wdo_1.csv')
+df = pd.read_csv('./data/wdo_small.csv')
 # df = df.drop(['Symbol'], axis=1)
 df = df.sort_values(['Date'])
 df = add_indicators(df.reset_index())
