@@ -3,7 +3,6 @@ data/bitstamp.csv
 tensorboard/*
 research/results
 **/__pycache__
-*.pkl
 env/Lib
 env/Scripts
 bash.exe.stackdump
